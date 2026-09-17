@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+opencv-python
+torch
+torchvision
+librosa
+ffmpeg-python
+openai-whisper
+numpy
