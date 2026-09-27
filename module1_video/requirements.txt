@@ -1,0 +1,12 @@
+# 任务1 视频伪造检测依赖（双模型合判版）
+# MesoNet 走 TensorFlow；XceptionNet 走 PyTorch（有 NVIDIA GPU 自动加速）
+tensorflow>=2.13,<2.17
+opencv-python>=4.6
+numpy>=1.21
+h5py>=3.0
+# XceptionNet（FaceForensics++ 微调模型）需要 PyTorch：
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   有 GPU 请装官方 cu121 版（自动识别 RTX 等 NVIDIA 显卡）
+torch>=2.0
+torchvision>=0.15
+pretrainedmodels>=0.7.4   # 加载开源权重（pickle 反序列化兼容）需要
