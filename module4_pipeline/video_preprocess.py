@@ -1,71 +1,52 @@
-import os
-import base64
-import urllib.parse
+from __future__ import annotations
+
 import subprocess
 from pathlib import Path
-from difflib import SequenceMatcher
 
-import requests
+import imageio_ffmpeg
+from faster_whisper import WhisperModel
 
-# 从环境变量读取百度 OCR 密钥（不要硬编码在代码里）
-API_KEY = os.getenv("BAIDU_API_KEY")
-SECRET_KEY = os.getenv("BAIDU_SECRET_KEY")
-
-
-def is_similar(text1, text2, threshold=0.8):
-    """判断两段文字是否相似（默认 80% 相似度视为重复）"""
-    if not text1 or not text2:
-        return False
-    return SequenceMatcher(None, text1, text2).ratio() > threshold
+# 输出音频规格：whisper 标准输入为 16kHz 单声道 wav
+SAMPLE_RATE = 16000
+# 模型大小：base 轻量（约 140MB，首次运行自动下载）；可选 tiny/base/small/medium/large-v3
+WHISPER_MODEL_SIZE = "base"
 
 
-def get_access_token():
-    """获取百度 OCR 的 access_token"""
-    url = (
-        f"https://aip.baidubce.com/oauth/2.0/token"
-        f"?grant_type=client_credentials&client_id={API_KEY}&client_secret={SECRET_KEY}"
-    )
-    response = requests.post(url)
-    return response.json().get("access_token")
+def _get_ffmpeg_exe() -> str:
+    """获取 imageio-ffmpeg 自带的 ffmpeg 可执行文件路径（免安装系统 ffmpeg）"""
+    return imageio_ffmpeg.get_ffmpeg_exe()
 
 
-def ocr_image_bytes(image_bytes, access_token, mode="high"):
-    """调用百度 OCR 识别单张图片中的文字"""
-    img_base64 = base64.b64encode(image_bytes).decode("utf-8")
-    img_encoded = urllib.parse.quote_plus(img_base64)
-
-    if mode == "standard":
-        url = f"https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic?access_token={access_token}"
-    else:
-        url = f"https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic?access_token={access_token}"
-
-    payload = f"image={img_encoded}&language_type=CHN_ENG"
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    response = requests.post(url, data=payload, headers=headers)
-    result = response.json()
-
-    words = []
-    if "words_result" in result:
-        for item in result["words_result"]:
-            words.append(item["words"])
-    return words
-
-
-def _extract_audio(video_path, audio_path):
-    """用 ffmpeg 从视频中抽出音频（mp3）"""
-    subprocess.run(
+def _extract_audio(video_path: Path, audio_path: Path) -> None:
+    """用 ffmpeg 从视频提取音频，转成 16kHz 单声道 wav（whisper 标准输入格式）"""
+    ffmpeg = _get_ffmpeg_exe()
+    result = subprocess.run(
         [
-            "ffmpeg", "-i", str(video_path), "-vn",
-            "-acodec", "libmp3lame", "-b:a", "128k",
+            ffmpeg, "-i", str(video_path), "-vn",
+            "-acodec", "pcm_s16le", "-ar", str(SAMPLE_RATE), "-ac", "1",
             "-y", str(audio_path),
         ],
         capture_output=True,
+        text=True,
     )
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg 提取音频失败: {result.stderr[-500:]}")
+
+
+def _load_model() -> WhisperModel:
+    """加载 faster-whisper 模型，优先 GPU 加速，无 GPU 自动回退 CPU。
+
+    模型自动下载到用户缓存目录（~/.cache/huggingface），不在项目目录内，不会进 git。
+    """
+    try:
+        return WhisperModel(WHISPER_MODEL_SIZE, device="cuda", compute_type="float16")
+    except Exception:
+        return WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
 
 
 def extract_audio_and_text(video_path: str) -> tuple[str, str]:
     """
-    视频预处理：从视频提取音频文件、识别画面字幕文本，保存到文本文件。
+    视频预处理：从视频提取音频（wav），语音转文字保存到文本文件。
 
     :param video_path: 原始视频路径
     :return: (audio_path, text_path) 生成的音频文件路径、文本文件路径
@@ -74,55 +55,19 @@ def extract_audio_and_text(video_path: str) -> tuple[str, str]:
     if not video_path.exists():
         raise FileNotFoundError(f"视频文件不存在: {video_path}")
 
-    # 1. 输出路径（与原视频同目录）
-    audio_path = video_path.parent / f"{video_path.stem}.mp3"
-    text_path = video_path.parent / f"{video_path.stem}_文本.txt"
+    # 输出路径：与原视频同目录
+    audio_path = video_path.with_suffix(".wav")
+    text_path = video_path.with_suffix(".txt")
 
-    # 2. 用 ffmpeg 抽音频
+    # 1. 提取音频（wav）
     _extract_audio(video_path, audio_path)
 
-    # 3. 获取百度 OCR token
-    access_token = get_access_token()
-    if not access_token:
-        raise RuntimeError("百度 OCR 授权失败，请检查环境变量 BAIDU_API_KEY / BAIDU_SECRET_KEY")
+    # 2. 语音转文字
+    model = _load_model()
+    segments, _info = model.transcribe(str(audio_path), beam_size=5)
+    text = "".join(segment.text for segment in segments).strip()
 
-    # 4. ffmpeg 抽帧（每秒 2 帧）
-    temp_dir = video_path.parent / "temp_frames"
-    temp_dir.mkdir(exist_ok=True)
-    output_pattern = str(temp_dir / "frame_%06d.jpg")
-    subprocess.run(
-        [
-            "ffmpeg", "-i", str(video_path),
-            "-vf", "fps=2",
-            "-q:v", "2", output_pattern, "-y",
-        ],
-        capture_output=True,
-    )
-
-    frames = sorted(temp_dir.glob("*.jpg"))
-
-    # 5. 逐帧 OCR，并用相似度去重
-    all_texts = []
-    last_text = ""
-    for frame_path in frames:
-        with open(frame_path, "rb") as f:
-            img_bytes = f.read()
-
-        words = ocr_image_bytes(img_bytes, access_token)
-        if words:
-            current_text = " ".join(words)
-            if current_text.strip() and not is_similar(current_text, last_text):
-                all_texts.append(current_text)
-                last_text = current_text
-
-    # 6. 清理临时帧
-    for f in frames:
-        f.unlink()
-    temp_dir.rmdir()
-
-    # 7. 保存文本
-    final_text = "\n".join(all_texts) if all_texts else "未识别到字幕内容"
-    with open(text_path, "w", encoding="utf-8") as f:
-        f.write(final_text)
+    # 3. 保存文本
+    text_path.write_text(text if text else "未识别到语音内容", encoding="utf-8")
 
     return str(audio_path), str(text_path)

@@ -7,3 +7,5 @@ librosa
 ffmpeg-python
 openai-whisper
 numpy
+imageio-ffmpeg
+faster-whisper
