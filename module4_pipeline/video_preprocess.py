@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
+
+# 国内网络环境：模型默认从 HuggingFace 下载会失败，改用镜像源
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 import imageio_ffmpeg
 from faster_whisper import WhisperModel
