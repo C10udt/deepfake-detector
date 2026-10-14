@@ -231,3 +231,30 @@ results/
 face_detector/
 reference/
 _diag.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 任务3本地数据（不进 git）
+module3_text/external_data/
+module3_text/input.txt
+module3_text/temp_*.txt
+module3_text/test_input.txt
+
+# 模型文件（大文件，不进 git）
+module3_text/model/
+*.bin
+*.pt
+*.pth
+*.ckpt
+
+# IDE
+.vscode/
+.idea/
+
+# 系统
+.DS_Store
+Thumbs.db
