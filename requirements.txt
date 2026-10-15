@@ -3,7 +3,6 @@
 # 安装：python -m pip install -r requirements.txt
 # 注意：必须使用 Python 3.8.x；torch GPU 版首次安装约 2.5GB
 # ============================================================
-
 # --- 任务1 视频换脸/AI生成检测 ---
 numpy==1.24.3
 tensorflow==2.13.0
@@ -11,17 +10,14 @@ keras==2.13.1
 opencv-python==4.13.0.92
 torch==2.4.1
 torchvision==0.19.1
-
 # --- 任务2 音频合成检测 ---
 librosa==0.10.2.post1
 joblib==1.4.2
 scikit-learn==1.3.2
-
 # --- 任务4 视频预处理（提音频 + 语音转文字）---
 imageio-ffmpeg==0.5.1
 faster-whisper==1.0.3
 tokenizers==0.20.3
-
 # --- 任务5 可视化界面（FastAPI）---
 fastapi==0.115.6
 uvicorn==0.32.1
