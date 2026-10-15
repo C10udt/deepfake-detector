@@ -216,3 +216,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ===== 模型权重 / 大文件 / 数据（不进仓库，用网盘或本地保存）=====
+*.h5
+*.pth
+*.p
+*.onnx
+*.pb
+*.mp4
+*.avi
+*.mov
+*.mkv
+results/
+face_detector/
+reference/
+_diag.py
