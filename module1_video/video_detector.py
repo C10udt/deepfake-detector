@@ -31,8 +31,8 @@ import os
 import cv2
 import numpy as np
 
-from face_detect import detect_faces
-from meso_detect import predict_face
+from module1_video.face_detect import detect_faces
+from module1_video.meso_detect import predict_face
 
 SAMPLE_INTERVAL = 10   # 每隔多少帧检测一次（可调：越小越准越慢）
 RISK_THRESHOLD = 60    # 风险分阈值：>=60 判定为伪造（Celeb-DF 实测调优值）
