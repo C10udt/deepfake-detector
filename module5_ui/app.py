@@ -87,6 +87,15 @@ async def detect(video: UploadFile):
         # 4. 多模块风险融合，输出最终判定
         is_fraud, final_score = fusion_final(video_score, audio_score, text_score)
 
+        # 5. numpy 标量转 Python 原生类型（FastAPI 无法序列化 numpy.bool_/numpy.float64）
+        video_is_fake = bool(video_is_fake)
+        video_score = float(video_score)
+        audio_is_fake = bool(audio_is_fake)
+        audio_score = float(audio_score)
+        text_score = float(text_score)
+        is_fraud = bool(is_fraud)
+        final_score = float(final_score)
+
         return {
             "video": {
                 "isFake": video_is_fake,

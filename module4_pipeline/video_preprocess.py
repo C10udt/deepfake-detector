@@ -34,18 +34,31 @@ def _extract_audio(video_path: Path, audio_path: Path) -> None:
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"ffmpeg 提取音频失败: {result.stderr[-500:]}")
+        # 边界情况：视频无音轨/损坏时 ffmpeg 会失败。
+        # 生成 1 秒静音 wav 兜底，保证后续检测链路可继续（whisper 转写为空、音频判低风险），
+        # 而不是让整个请求 500。
+        silent = subprocess.run(
+            [
+                ffmpeg, "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono",
+                "-t", "1", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                "-y", str(audio_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if silent.returncode == 0:
+            return
+        raise RuntimeError(f"ffmpeg 提取音频失败: {result.stderr[-300:]}")
 
 
 def _load_model() -> WhisperModel:
-    """加载 faster-whisper 模型，优先 GPU 加速，无 GPU 自动回退 CPU。
+    """加载 faster-whisper 模型，使用 CPU 推理。
 
-    模型自动下载到用户缓存目录（~/.cache/huggingface），不在项目目录内，不会进 git。
+    说明：ctranslate2 在 Windows 上即使设置 CUDA_VISIBLE_DEVICES 为空，
+    显式 device="cuda" 仍会尝试加载 cuDNN9 并崩溃（本机 RTX4060 + TF2.13 环境），
+    故联调阶段强制 CPU（int8 量化，精度损失可接受）。
     """
-    try:
-        return WhisperModel(WHISPER_MODEL_SIZE, device="cuda", compute_type="float16")
-    except Exception:
-        return WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
+    return WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
 
 
 def extract_audio_and_text(video_path: str) -> tuple[str, str]:
