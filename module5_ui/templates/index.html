@@ -249,6 +249,19 @@
         .final-result .result-value {
             font-size: 1.1rem;
         }
+
+        /* 无人脸提示：红字，默认隐藏 */
+        .no-face-msg {
+            display: none;
+            color: #F5222D;
+            font-weight: 600;
+            font-size: 1rem;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            background: #FFF1F0;
+            border: 1px solid #FFCCC7;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
@@ -286,6 +299,8 @@
                 <i class="fa-solid fa-chart-pie"></i>
                 检测结果
             </h2>
+            <!-- 无人脸提示（红字，默认隐藏） -->
+            <div class="no-face-msg" id="noFaceMsg"></div>
             <div class="result-item">
                 <span class="result-label"><i class="fa-solid fa-face-grimace"></i>视频换脸检测：</span>
                 <span class="result-value" id="videoResult"></span>
@@ -318,7 +333,7 @@
             }
         });
 
-        function startDetect() {
+        async function startDetect() {
             const file = videoInput.files[0];
             if (!file) {
                 alert("请先选择视频文件！");
@@ -326,32 +341,55 @@
             }
 
             const detectBtn = document.getElementById('detectBtn');
+            const resultBox = document.getElementById('resultBox');
+            const noFaceMsg = document.getElementById('noFaceMsg');
+
             detectBtn.disabled = true;
             detectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>检测中...';
 
-            document.getElementById('resultBox').style.display = "none";
+            // 每次开始前：隐藏结果区、清空无人脸提示和上次结果
+            resultBox.style.display = "none";
+            noFaceMsg.style.display = "none";
+            noFaceMsg.textContent = "";
 
-            setTimeout(() => {
-                const mockResult = {
-                    video: { isFake: true, score: 85, desc: "假（风险分：85）" },
-                    audio: { isFake: false, score: 20, desc: "真（风险分：20）" },
-                    text: { score: 70, desc: "风险分：70" },
-                    final: { isFraud: true, desc: "高风险，疑似诈骗" }
-                };
+            try {
+                // 用 FormData 真实上传文件，字段名 video 与后端 UploadFile video 对齐
+                const formData = new FormData();
+                formData.append('video', file);
 
-                document.getElementById('videoResult').textContent = mockResult.video.desc;
-                document.getElementById('audioResult').textContent = mockResult.audio.desc;
-                document.getElementById('textResult').textContent = mockResult.text.desc;
-                
+                const resp = await fetch('/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await resp.json();
+
+                // 无人脸判定：后端返回 no_face 时，结果区显示红字提示
+                if (data.status === 'no_face') {
+                    noFaceMsg.textContent = data.msg || '未检测到人脸，无法判定';
+                    noFaceMsg.style.display = 'block';
+                    resultBox.style.display = 'block';
+                    return;
+                }
+
+                // 正常结果渲染
+                document.getElementById('videoResult').textContent = data.video.desc;
+                document.getElementById('audioResult').textContent = data.audio.desc;
+                document.getElementById('textResult').textContent = data.text.desc;
+
                 const finalResultEl = document.getElementById('finalResult');
-                finalResultEl.textContent = mockResult.final.desc;
-                finalResultEl.className = mockResult.final.isFraud ? "result-value risk-high" : "result-value risk-normal";
+                finalResultEl.textContent = data.final.desc;
+                finalResultEl.className = data.final.isFraud ? "result-value risk-high" : "result-value risk-normal";
 
                 // 显示结果时触发淡入动画
-                document.getElementById('resultBox').style.display = "block";
+                resultBox.style.display = "block";
+
+            } catch (err) {
+                alert("检测失败：" + err.message);
+            } finally {
                 detectBtn.disabled = false;
                 detectBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>开始检测';
-            }, 2500);
+            }
         }
     </script>
 </body>

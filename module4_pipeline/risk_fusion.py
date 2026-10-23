@@ -1,4 +1,5 @@
-def fusion_final(video_score: float, audio_score: float, text_score: float) -> tuple[bool, float]:
+from typing import Tuple
+def fusion_final(video_score: float, audio_score: float, text_score: float) -> Tuple[bool, float]:
     """
     多模块风险分数加权融合，输出最终诈骗判定
     权重：视频0.4，音频0.35，文本0.25
