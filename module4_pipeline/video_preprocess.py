@@ -1,13 +1,24 @@
 from __future__ import annotations
 
 import os
+import struct
 import subprocess
+import sys
+import wave
 from pathlib import Path
 
 # 国内网络环境：模型默认从 HuggingFace 下载会失败，改用镜像源
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
+# 某些 Windows 环境下 PyAV 的 DLL 会被应用控制策略拦截（ImportError），
+# 我们已经用 ffmpeg 转好了 wav，可以绕过 faster_whisper 对 av 的依赖。
+# 先 mock 一个空的 av 模块，让 faster_whisper 能正常 import。
+if "av" not in sys.modules:
+    import types
+    sys.modules["av"] = types.ModuleType("av")
+
 import imageio_ffmpeg
+import numpy as np
 from faster_whisper import WhisperModel
 
 # 输出音频规格：whisper 标准输入为 16kHz 单声道 wav
@@ -61,6 +72,24 @@ def _load_model() -> WhisperModel:
     return WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
 
 
+def _read_wav_as_np(wav_path: Path) -> np.ndarray:
+    """用标准库 wave 读 16kHz 单声道 wav，转成 float32 numpy 数组（whisper 标准输入）。"""
+    with wave.open(str(wav_path), "rb") as wf:
+        n_channels = wf.getnchannels()
+        sampwidth = wf.getsampwidth()
+        framerate = wf.getframerate()
+        n_frames = wf.getnframes()
+        raw = wf.readframes(n_frames)
+
+    # 只支持 16-bit PCM（我们 ffmpeg 输出就是 pcm_s16le）
+    if sampwidth != 2:
+        raise ValueError(f"不支持的 wav 位宽: {sampwidth} 字节")
+    samples = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    if n_channels > 1:
+        samples = samples.reshape(-1, n_channels).mean(axis=1)
+    return samples
+
+
 def extract_audio_and_text(video_path: str) -> tuple[str, str]:
     """
     视频预处理：从视频提取音频（wav），语音转文字保存到文本文件。
@@ -79,9 +108,10 @@ def extract_audio_and_text(video_path: str) -> tuple[str, str]:
     # 1. 提取音频（wav）
     _extract_audio(video_path, audio_path)
 
-    # 2. 语音转文字
+    # 2. 语音转文字（自己读 wav 成 numpy 数组，绕过 PyAV 依赖）
     model = _load_model()
-    segments, _info = model.transcribe(str(audio_path), beam_size=5)
+    audio_np = _read_wav_as_np(audio_path)
+    segments, _info = model.transcribe(audio_np, beam_size=5)
     text = "".join(segment.text for segment in segments).strip()
 
     # 3. 保存文本

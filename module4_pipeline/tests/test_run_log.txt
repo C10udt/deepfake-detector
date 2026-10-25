@@ -1,0 +1,65 @@
+﻿
+============================================================
+测试用例: 正常视频-有音轨
+视频路径: C:\Users\hhjgh\Desktop\视频检测\0\0.mp4
+文件存在: True
+结果: 成功
+耗时: 4.43s
+识别文字: 3、2、1開始了
+
+============================================================
+测试用例: 无音轨视频
+视频路径: C:\Users\hhjgh\Desktop\Trae CN\resources\app\node_modules\@byted-icube\desktop-modules\dist\media\1_solo.mp4
+文件存在: True
+结果: 成功
+耗时: 1.18s
+识别文字: You
+
+============================================================
+测试用例: 损坏视频文件
+视频路径: C:\Users\hhjgh\Desktop\deepfake-detector\module4_pipeline\tests\corrupt_test.mp4
+文件存在: True
+结果: 成功
+耗时: 1.25s
+识别文字: You
+
+============================================================
+测试用例: 大视频-约11MB
+视频路径: C:\Users\hhjgh\Desktop\视频检测\6\6.mp4
+文件存在: True
+结果: 成功
+耗时: 6.13s
+识别文字: It's a call show
+
+============================================================
+测试用例: 文件不存在
+视频路径: C:\Users\hhjgh\Desktop\不存在的视频.mp4
+文件存在: False
+python.exe : Traceback (most recent call last):
+所在位置 行:1 字符: 58
++ ... -detector"; & "C:\Users\hhjgh\Desktop\deepfake-env38\Scripts\python.e ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\hhjgh\Desktop\deepfake-detector\module4_pipeline\tests\test_boundary.py", line 36, in run_case
+    audio, text = extract_audio_and_text(video_path)
+  File "C:\Users\hhjgh\Desktop\deepfake-detector\module4_pipeline\video_preprocess.py", line 102, in extract_audio_and_
+text
+    raise FileNotFoundError(f"视频文件不存在: {video_path}")
+FileNotFoundError: 视频文件不存在: C:\Users\hhjgh\Desktop\不存在的视频.mp4
+结果: 失败
+耗时: 0.0s
+错误: FileNotFoundError: 视频文件不存在: C:\Users\hhjgh\Desktop\不存在的视频.mp4
+
+
+============================================================
+测试汇总
+============================================================
+用例                   结果     耗时(s)      说明
+------------------------------------------------------------
+正常视频-有音轨             成功     4.43       3、2、1開始了
+无音轨视频                成功     1.18       You
+损坏视频文件               成功     1.25       You
+大视频-约11MB            成功     6.13       It's a call show
+文件不存在                失败/兜底  0.0        FileNotFoundError: 视频文件不存在: C:\Users\hhjgh\Desktop\不存在的视频.mp4
