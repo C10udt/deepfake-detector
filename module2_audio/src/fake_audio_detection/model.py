@@ -48,7 +48,7 @@ def train_svm(
     save_path: str,
     test_size: float = 0.2,
     random_state: int = 42,
-    normalisation_type: str = "l2",
+    normalisation_type: str = "z-score",
     kernel: str = "rbf",
     C: float = 1.0,
     gamma: str = "scale",

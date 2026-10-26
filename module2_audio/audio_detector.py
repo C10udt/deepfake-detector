@@ -33,10 +33,15 @@ except ImportError:
         mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
         return np.mean(mfccs, axis=1)
 
-# 模型路径
-# 注意：my_model.joblib 为 numpy 2.x 环境导出，项目锁定 numpy 1.24.3，
-# 加载会报 No module named 'numpy._core'；my_model_v1x.joblib 与 numpy 1.x 兼容。
-MODEL_PATH = os.path.join(CURRENT_DIR, 'models', 'my_model_v1x.joblib')
+# 模型路径（按优先级回退）
+# - my_model_v1x.joblib: numpy 1.x / Python 3.8 环境导出（全队统一方案A，正式使用）
+# - my_model.joblib: numpy 2.x 环境导出（新 z-score 模型，numpy 2.x 环境下使用）
+# 两版并存的说明见 联调记录_20261023.md 遗留待办
+_MODEL_CANDIDATES = [
+    os.path.join(CURRENT_DIR, 'models', 'my_model_v1x.joblib'),
+    os.path.join(CURRENT_DIR, 'models', 'my_model.joblib'),
+]
+MODEL_PATH = next((p for p in _MODEL_CANDIDATES if os.path.exists(p)), _MODEL_CANDIDATES[0])
 
 
 def detect_audio(audio_path):
