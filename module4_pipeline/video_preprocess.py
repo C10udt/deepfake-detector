@@ -79,12 +79,14 @@ def extract_audio_and_text(video_path: str) -> tuple[str, str]:
     # 1. 提取音频（wav）
     _extract_audio(video_path, audio_path)
 
-    # 2. 语音转文字
-    model = _load_model()
-    segments, _info = model.transcribe(str(audio_path), beam_size=5)
-    text = "".join(segment.text for segment in segments).strip()
-
-    # 3. 保存文本
+    # 2. 语音转文字（模型缺失/首次下载失败时降级，不阻塞整个检测链路）
+    try:
+        model = _load_model()
+        segments, _info = model.transcribe(str(audio_path), beam_size=5)
+        text = "".join(segment.text for segment in segments).strip()
+    except Exception as e:
+        print(f"⚠️ 语音识别模型不可用（需联网下载或本地缓存），跳过转写: {e}")
+        text = ""
     text_path.write_text(text if text else "未识别到语音内容", encoding="utf-8")
 
     return str(audio_path), str(text_path)
