@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可疑音视频诈骗检测系统</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 全局重置 + 高级字体（苹果/微软风） */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            /* 高级字体：苹果+微软风，全网适配 */
+            font-family: -apple-system, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        html {
+            font-size: 16px;
+        }
+        @media (max-width: 768px) {
+            html {
+                font-size: 14px;
+            }
+        }
+
+        body {
+            background-color: #F5F7FA;
+            color: #1D2129;
+            line-height: 1.6;
+        }
+
+        /* 主容器：轻微阴影+圆角，hover动效 */
+        .container {
+            max-width: 800px;
+            margin: 4rem auto;
+            padding: 32px;
+            background: #FFFFFF;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .container:hover {
+            box-shadow: 0 8px 32px rgba(22, 119, 255, 0.1);
+        }
+
+        /* 头部：标题+关闭按钮 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #E5E6EB;
+        }
+        .system-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            /* 标题渐变：极淡天蓝色 */
+            background: linear-gradient(135deg, #4A90E2, #6BB3FF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .system-title i {
+            font-size: 1.8rem;
+            /* 图标不渐变，单独设色 */
+            color: #4A90E2;
+        }
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: #86909C;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 8px;
+            border-radius: 8px;
+        }
+        .close-btn:hover {
+            color: #4A90E2;
+            background-color: #F0F7FF;
+            transform: scale(1.05); /* 按钮hover轻微缩放 */
+        }
+
+        /* 上传区域：虚线边框+磨砂玻璃背景 */
+        .upload-section {
+            margin-bottom: 24px;
+            padding: 48px 24px;
+            border: 2px dashed #D9D9D9;
+            border-radius: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+            /* 磨砂玻璃效果：核心代码 */
+            backdrop-filter: blur(10px);
+            background: rgba(255,255,255,0.85);
+        }
+        .upload-section:hover {
+            border-color: #4A90E2;
+            background: #F0F7FF;
+            transform: translateY(-3px); /* 上传区hover轻微上移 */
+        }
+        .upload-icon {
+            font-size: 3rem;
+            color: #4A90E2;
+            margin-bottom: 16px;
+        }
+        .upload-text {
+            font-size: 1.1rem;
+            color: #4E5969;
+            margin-bottom: 20px;
+        }
+        #videoFile {
+            display: none;
+        }
+        .upload-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            /* 上传按钮渐变：极淡天蓝色 */
+            background: linear-gradient(135deg, #4A90E2, #6BB3FF);
+            color: #FFFFFF;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .upload-btn:hover {
+            transform: scale(1.05); /* 按钮点击/hover轻微缩放 */
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.2);
+        }
+        .file-name {
+            margin-top: 16px;
+            color: #86909C;
+            font-size: 0.9rem;
+        }
+
+        /* 检测按钮：渐变背景+点击缩放 */
+        .detect-btn {
+            width: 100%;
+            padding: 14px;
+            /* 检测按钮渐变：主色调 */
+            background: linear-gradient(135deg, #4A90E2, #6BB3FF);
+            color: #FFFFFF;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        .detect-btn:disabled {
+            background: linear-gradient(135deg, #91CAFF, #B8D8FF);
+            cursor: not-allowed;
+        }
+        .detect-btn:hover:not(:disabled) {
+            transform: scale(1.02); /* 按钮hover轻微缩放 */
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+        }
+        /* 加载图标旋转动画（核心） */
+        .fa-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 结果区域：淡入动画+磨砂玻璃 */
+        .result-section {
+            margin-top: 32px;
+            padding: 24px;
+            /* 结果区磨砂玻璃 */
+            backdrop-filter: blur(10px);
+            background: rgba(247,248,250,0.9);
+            border-radius: 16px;
+            display: none;
+            /* 结果淡入动画：核心代码 */
+            animation: fadeIn 0.8s ease-in-out;
+        }
+        /* 淡入动画定义 */
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .result-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1D2129;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #E5E6EB;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .result-title i {
+            color: #4A90E2;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            background: #FFFFFF;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.2s ease;
+        }
+        .result-item:hover {
+            transform: scale(1.01); /* 结果项hover轻微缩放 */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+        .result-label {
+            font-size: 1rem;
+            color: #4E5969;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .result-label i {
+            color: #4A90E2;
+        }
+        .result-value {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        .risk-high {
+            color: #F5222D;
+        }
+        .risk-normal {
+            color: #52C41A;
+        }
+        .final-result {
+            /* 最终结果渐变背景 */
+            background: linear-gradient(135deg, #E8F4FF, #F0F7FF);
+            border-left: 4px solid #4A90E2;
+        }
+        .final-result .result-value {
+            font-size: 1.1rem;
+        }
+
+        /* 无人脸提示：红字，默认隐藏 */
+        .no-face-msg {
+            display: none;
+            color: #F5222D;
+            font-weight: 600;
+            font-size: 1rem;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            background: #FFF1F0;
+            border: 1px solid #FFCCC7;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="system-title">
+                <i class="fa-solid fa-shield-halved"></i>
+                可疑音视频诈骗检测系统
+            </h1>
+            <button class="close-btn" onclick="alert('关闭检测页面')">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-icon">
+                <i class="fa-solid fa-file-video"></i>
+            </div>
+            <p class="upload-text">选择需要检测的音视频文件</p>
+            <label for="videoFile" class="upload-btn">
+                <i class="fa-solid fa-upload"></i>
+                选择文件
+            </label>
+            <p class="file-name" id="fileName">未选择文件</p>
+        </div>
+        <input type="file" id="videoFile">
+
+        <button class="detect-btn" id="detectBtn" onclick="startDetect()">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            开始检测
+        </button>
+
+        <div class="result-section" id="resultBox">
+            <h2 class="result-title">
+                <i class="fa-solid fa-chart-pie"></i>
+                检测结果
+            </h2>
+            <!-- 无人脸提示（红字，默认隐藏） -->
+            <div class="no-face-msg" id="noFaceMsg"></div>
+            <div class="result-item">
+                <span class="result-label"><i class="fa-solid fa-face-grimace"></i>视频换脸检测：</span>
+                <span class="result-value" id="videoResult"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label"><i class="fa-solid fa-wave-square"></i>声音合成检测：</span>
+                <span class="result-value" id="audioResult"></span>
+            </div>
+            <div class="result-item">
+                <span class="result-label"><i class="fa-solid fa-file-alt"></i>文本诈骗检测：</span>
+                <span class="result-value" id="textResult"></span>
+            </div>
+            <div class="result-item final-result">
+                <span class="result-label"><i class="fa-solid fa-exclamation-circle"></i>最终风险结论：</span>
+                <span class="result-value" id="finalResult"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const videoInput = document.getElementById('videoFile');
+        const fileName = document.getElementById('fileName');
+        videoInput.addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                fileName.textContent = `已选择：${e.target.files[0].name}`;
+                fileName.style.color = "#4A90E2";
+            } else {
+                fileName.textContent = "未选择文件";
+                fileName.style.color = "#86909C";
+            }
+        });
+
+        async function startDetect() {
+            const file = videoInput.files[0];
+            if (!file) {
+                alert("请先选择视频文件！");
+                return;
+            }
+
+            const detectBtn = document.getElementById('detectBtn');
+            const resultBox = document.getElementById('resultBox');
+            const noFaceMsg = document.getElementById('noFaceMsg');
+
+            detectBtn.disabled = true;
+            detectBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>检测中...';
+
+            // 每次开始前：隐藏结果区、清空无人脸提示和上次结果
+            resultBox.style.display = "none";
+            noFaceMsg.style.display = "none";
+            noFaceMsg.textContent = "";
+
+            try {
+                // 用 FormData 真实上传文件，字段名 video 与后端 UploadFile video 对齐
+                const formData = new FormData();
+                formData.append('video', file);
+
+                const resp = await fetch('/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await resp.json();
+
+                // 无人脸判定：后端返回 no_face 时，结果区显示红字提示
+                if (data.status === 'no_face') {
+                    noFaceMsg.textContent = data.msg || '未检测到人脸，无法判定';
+                    noFaceMsg.style.display = 'block';
+                    resultBox.style.display = 'block';
+                    return;
+                }
+
+                // 正常结果渲染
+                document.getElementById('videoResult').textContent = data.video.desc;
+                document.getElementById('audioResult').textContent = data.audio.desc;
+                document.getElementById('textResult').textContent = data.text.desc;
+
+                const finalResultEl = document.getElementById('finalResult');
+                finalResultEl.textContent = data.final.desc;
+                finalResultEl.className = data.final.isFraud ? "result-value risk-high" : "result-value risk-normal";
+
+                // 显示结果时触发淡入动画
+                resultBox.style.display = "block";
+
+            } catch (err) {
+                alert("检测失败：" + err.message);
+            } finally {
+                detectBtn.disabled = false;
+                detectBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>开始检测';
+            }
+        }
+    </script>
+</body>
+</html>

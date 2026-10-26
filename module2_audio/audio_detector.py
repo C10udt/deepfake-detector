@@ -34,7 +34,9 @@ except ImportError:
         return np.mean(mfccs, axis=1)
 
 # 模型路径
-MODEL_PATH = os.path.join(CURRENT_DIR, 'models', 'my_model.joblib')
+# 注意：my_model.joblib 为 numpy 2.x 环境导出，项目锁定 numpy 1.24.3，
+# 加载会报 No module named 'numpy._core'；my_model_v1x.joblib 与 numpy 1.x 兼容。
+MODEL_PATH = os.path.join(CURRENT_DIR, 'models', 'my_model_v1x.joblib')
 
 
 def detect_audio(audio_path):
